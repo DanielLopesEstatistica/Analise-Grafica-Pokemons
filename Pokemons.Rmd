@@ -1,0 +1,145 @@
+---
+title: "Untitled"
+author: "Daniel Lopes"
+date: '2022-09-03'
+output: html_document
+---
+
+```{r}
+library(readr)
+library(stringr)
+library(tidyr)
+library(dplyr)
+
+pokedex <- read_csv("pokedex.csv")
+```
+
+```{r}
+pokedex <- pokedex %>% select(!c(...1, german_name, japanese_name))
+```
+
+```{r}
+library(ggplot2)
+
+pokedex %>% 
+  ggplot(aes(x = total_points))+
+    geom_histogram(binwidth=35, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+    ggtitle("Distribuição de poder de Pokémons") +
+    xlab("Poder Total") +
+    ylab("Quantidade de Observações")
+  
+```
+
+```{r}
+pokeclean <- pokedex
+pokeclean <- pokeclean %>% filter(!str_detect(name, "Mega "))
+pokeclean <- pokeclean %>% filter(!str_detect(name, "Alolan "))
+pokeclean <- pokeclean %>% filter(!str_detect(name, "Partner "))
+pokeclean <- pokeclean %>% filter(!str_detect(name, "Galarian "))
+```
+
+```{r}
+poketone <- pokeclean %>% group_by(type_1) %>% summarise_at(vars(hp, attack, defense, sp_attack, sp_defense, speed), sum)
+pokettwo <- pokeclean %>% group_by(type_2) %>% summarise_at(vars(hp, attack, defense, sp_attack, sp_defense, speed), sum) %>% drop_na()
+statssum <- cbind(poketone[1], poketone[-1] + pokettwo[-1])
+countt1 <- pokeclean %>% count(type_1)
+countt2 <- pokeclean %>% count(type_2) %>% drop_na()
+countsum <- cbind(countt1[1], countt1[-1] + countt2[-1])
+countsum$type_1 <- NULL
+typevector <- statssum$type_1
+statssum$type_1 <- NULL
+countmax <- countsum %>% cbind(replicate(5,countsum$n))
+statsmean <- statssum/countmax
+statsmean <- cbind(type = poketone$type_1, statsmean)
+```
+
+```{r}
+statsmeanlonger <- statsmean %>% pivot_longer(
+  cols = hp:speed,
+  names_to = "stats",
+  values_to = "value"
+)
+```
+
+
+```{r}
+waterstats <- statsmeanlonger %>% filter(type == 'Water')
+electricstats <- statsmeanlonger %>% filter(type == 'Electric')
+generalstats <- rbind(waterstats, electricstats)
+
+generalstats %>% ggplot(aes(x = stats, y = value, fill = type))+
+  geom_bar(position = "dodge", stat = "identity")
+
+```
+
+```{r, fig.width=15,fig.height=5}
+Comparar <- function(n, m){
+  nstats <- statsmeanlonger %>% filter(type == n)
+  mstats <- statsmeanlonger %>% filter(type == m)
+  gstats <- rbind(nstats, mstats)
+  
+  gstats %>% ggplot(aes(x = stats, y = value, fill = type))+
+    geom_bar(position = "dodge", stat = "identity") +
+    labs(x = "Status", y = "Valores", title = "Comparação da Média de Status") +
+    theme(legend.position = "bottom") +
+    scale_fill_manual(values=c("#999999", "#E69F00")) +
+    facet_grid(~type)
+}
+
+Comparar("Dragon", "Bug")
+```
+
+```{r, fig.width=20,fig.height=11}
+colorspokemon <- c("#A6B91A", "#705746", "#6F35FC", "#F7D02C", "#D685AD", "#C22E28", "#EE8130", "#A98FF3", "#735797", "#7AC74C", "#E2BF65", "#96D9D6", "#A8A77A", "#A33EA1", "#F95587", "#B6A136", "#B7B7CE", "#6390F0")
+
+statsmeanlonger %>% ggplot(aes(x = stats, y = value, fill = type, width = 0.7))+
+  geom_bar(position = "dodge", stat = "identity") +
+  labs(x = "Status", y = "Valores", title = "Comparação da Média de Status") +
+  theme(legend.position = "right") +
+  scale_fill_manual(values = colorspokemon) + 
+  facet_wrap(~type, nrow = 4) + 
+  scale_x_discrete(guide=guide_axis(n.dodge=2))
+```
+
+```{r}
+pokeclean %>% 
+  ggplot(aes(x = total_points, fill = status))+
+    geom_histogram(color="#e9ecef", alpha=0.6, position = 'identity') + 
+    labs(fill = "")
+```
+
+```{r}
+pokeclean  %>%  
+  filter(!(height_m > 3)) %>% 
+  ggplot(aes(x = height_m))+
+    geom_histogram(color = "blue", alpha = 0.6,  fill = "blue", position = 'identity')
+pokeclean  %>%  
+  filter(!(height_m > 3)) %>% 
+  ggplot(aes(x = weight_kg))+
+    geom_histogram(color = "red", alpha = 0.6,  fill = "red", position = 'identity')
+```
+
+```{r}
+pokeclean %>% 
+  filter((height_m > 3)) %>% 
+  ggplot(aes(x = height_m))+
+    geom_histogram(color = "blue", alpha = 0.6,  fill = "blue", position = 'identity')
+pokeclean  %>%  
+  filter((height_m > 3)) %>% 
+  ggplot(aes(x = weight_kg))+
+    geom_histogram(color = "red", alpha = 0.6,  fill = "red", position = 'identity')
+```
+
+```{r}
+pokeclean %>%
+  filter(!(height_m > 3)) %>% 
+  ggplot(aes(x = height_m, y= weight_kg)) +
+    geom_point() +
+    geom_abline(intercept = -37, slope = 87.47, color = "red")
+
+
+pokeclean %>%
+  filter(!(height_m > 3)) %>% 
+  lm(formula = weight_kg ~ height_m)
+```
+
